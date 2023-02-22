@@ -1,0 +1,69 @@
+version: "3.9"
+
+services:
+  web:
+    build: data/web
+    ports:
+      - "8080:80"
+    depends_on:
+      - elasticsearch
+      - mongodb
+    environment:
+      ELASTICSEARCH_HOST: elasticsearch:9200
+      MONGODB_URI: mongodb://mongodb:27017  
+  mongodb:
+    image: mongo:latest
+    restart: always
+    volumes:
+      - ./data/mongodb:/data/db
+    ports:
+      - "27017:27017"
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.6.1
+    restart: always
+    environment:
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false    
+      - discovery.type=single-node
+    ports:
+    #   - "9200:9200"
+      - "9200"
+  nginx:
+    image: nginx:latest
+    restart: always
+    volumes:
+      - ./data/nginx:/etc/nginx/conf.d
+    ports:
+      - "80:80"
+      - "443:443"
+  influxdb:
+    image: influxdb:latest
+    restart: always
+    volumes:
+      - ./data/influxdb:/var/lib/influxdb
+    ports:
+      - "8086:8086"      
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup 
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=password 
+      - DOCKER_INFLUXDB_INIT_ORG=telegraf-org 
+      - DOCKER_INFLUXDB_INIT_BUCKET=telegraf
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=pRnY0zke1_D2h3OrTQ1scKJdGNXnBzw-9-QRqITW0PK9xbP2ueMqTMOzKBUULWy00lvuVmJ0sW2H9w1XVRUexA==
+  telegraf:
+    image: telegraf:latest
+    restart: always
+    volumes:
+      - ./data/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /var/run/docker.sock.raw:/var/run/docker.sock      
+    links: 
+      - influxdb
+  grafana:
+    image: grafana/grafana:latest
+    restart: always
+    volumes:
+      - ./data/grafana:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    links: 
+      - influxdb
